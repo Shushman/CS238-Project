@@ -1,7 +1,6 @@
 __precompile__()
 module CS238Project
 
-using PyCall
 using DataStructures
 using Distributions
 using ParticleFilters, POMCPOW
@@ -28,7 +27,9 @@ export
     generate_s,
     reward,
     reward_no_heuristic,
-    update_belief
+    isterminal,
+    update_belief,
+    initial_belief_state
 
 # uav_pomdp - Belief MDP
 export
@@ -37,15 +38,15 @@ export
     generate_sr,
     next_state_reward_true
 
-# ground_truth.jl - simulator
-export
-    SimulatorState,
-    first_update_simulator,
-    update_simulator,
-    freeze_simulator,
-    optimal_action_given_information,
-    choose_information_action,
-    greedy_information_action
+# # ground_truth.jl - simulator
+# export
+#     SimulatorState,
+#     first_update_simulator,
+#     update_simulator,
+#     freeze_simulator,
+#     optimal_action_given_information,
+#     choose_information_action,
+#     greedy_information_action
 
 
 
@@ -55,7 +56,6 @@ abstract type Sensor end
 
 include("sensors.jl")
 include("uav_pomdp.jl")
-include("ground_truth.jl")
 
 
 end #module

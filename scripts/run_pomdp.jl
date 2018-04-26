@@ -1,6 +1,7 @@
 using MCTS, BasicPOMCP#, POMCPOW
 using Base.Profile
-include("GroundTruth.jl")
+using CS238Project
+include("ground_truth.jl")
 
 function run_iteration_alg(sim, sensors, lambdas, rng, initial_map, alg, grid_size, suppress_sim)
 
@@ -163,7 +164,7 @@ const SENSOR_LAMBDA = 1.0
 const NFZ_LAMBDA = 20
 const SUCCESS_LAMBDA = 1000.0
 
-const SUPPRESS_SIM = true
+const SUPPRESS_SIM = false
 
 const sensors = [LineSensor([0,1]),LineSensor([1,0]),LineSensor([0,-1]),LineSensor([-1,0]),CircularSensor()]
 const lambdas = [MOVEMENT_LAMBDA, HEURISTIC_LAMBDA, SENSOR_LAMBDA, NFZ_LAMBDA, SUCCESS_LAMBDA]
@@ -175,7 +176,7 @@ const MAX_DEPTH = 40
 const NUM_TRIALS = 20
 const START_SEED = 300
 
-for algorithm in ["mdp","pomcp","greedy"]
+for algorithm in ["pomcp", "mdp", "greedy"]
     run_trials_with_alg(sensors, lambdas, NUM_TRIALS, SUPPRESS_SIM, START_SEED, algorithm)
 end
 

@@ -91,11 +91,12 @@ end
 # Simple line sensor
 mutable struct LineSensor <: Sensor
     energy_spec::Tuple{Float64, Float64}
+    direction::Array{Int64,1}
 end
-LineSensor() = LineSensor((LINE_SENSOR_ENERGY_USE, LINE_SENSOR_ENERGY_SD))
+LineSensor(direction::Array{Int64,1}) = LineSensor((LINE_SENSOR_ENERGY_USE, LINE_SENSOR_ENERGY_SD), direction)
 
 
-function sense(sensor::LineSensor, world_map::BitArray, loc::Array{Int64,1}, direction::Array{Int64,1}, rng::MersenneTwister,)
+function sense(sensor::LineSensor, world_map::BitArray, loc::Array{Int64,1}, rng::MersenneTwister,)
     map_size = size(world_map, 1)
     confidence_stepsize = (LINE_SENSOR_MAX_CONF-LINE_SENSOR_MIN_CONF)/LINE_SENSOR_LENGTH
     confidences = LINE_SENSOR_MAX_CONF:-confidence_stepsize:LINE_SENSOR_MIN_CONF
@@ -103,7 +104,7 @@ function sense(sensor::LineSensor, world_map::BitArray, loc::Array{Int64,1}, dir
     obs_map = Array{Tuple{Bool,Float64}}(map_size, map_size)
     fill!(obs_map,(false,0.0))
 
-    for loc in generate_line(loc, LINE_SENSOR_LENGTH, direction, map_size)
+    for loc in generate_line(loc, LINE_SENSOR_LENGTH, sensor.direction, map_size)
         row, col, d = loc
         prob_right = confidences[d]
         if rand(rng,Float64) < prob_right
@@ -118,13 +119,13 @@ function sense(sensor::LineSensor, world_map::BitArray, loc::Array{Int64,1}, dir
     return obs_map
 end
 
-function change_confidence(sensor::LineSensor, belief_map::Array{Float64,2}, loc::Array{Int64,1}, direction::Array{Int64,1})
+function change_confidence(sensor::LineSensor, belief_map::Array{Float64,2}, loc::Array{Int64,1})
     map_size = size(belief_map, 1)
     confidence_stepsize = (LINE_SENSOR_MAX_CONF-LINE_SENSOR_MIN_CONF)/LINE_SENSOR_LENGTH
     confidences = LINE_SENSOR_MAX_CONF:-confidence_stepsize:LINE_SENSOR_MIN_CONF
 
     delta_confidence = 0
-    for loc in generate_line(loc, LINE_SENSOR_LENGTH, direction, map_size)
+    for loc in generate_line(loc, LINE_SENSOR_LENGTH, sensor.direction, map_size)
         row, col, d = loc
         prob_right = confidences[d]       
         delta_confidence += delta_expected_confidence(prob_right, belief_map[row,col]) 
@@ -140,7 +141,7 @@ function update_bel_map_mdp(sensor::LineSensor, belief_map::Array{Float64,2}, lo
 
     new_belief_map = copy(belief_map)
 
-    for loc in generate_line(loc, LINE_SENSOR_LENGTH, direction, map_size)
+    for loc in generate_line(loc, LINE_SENSOR_LENGTH, sensor.direction, map_size)
         row, col, d = loc
         prob_right = confidences[d]
         prob_NFZ = belief_map[row,col]

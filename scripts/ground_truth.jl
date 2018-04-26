@@ -1,3 +1,7 @@
+using PyCall
+using DataStructures
+using CS238Project
+
 @pyimport Tkinter as tk
 
 ##################################
@@ -9,7 +13,7 @@ struct SimulatorState
 	canvas::PyObject
 	canvas_true_grid::Array{Array{Int64,1},1}
     canvas_belief_grid::Array{Array{Int64,1},1}
-    canvas_battery::Array{Int64,1}
+    #canvas_battery::Array{Int64,1}
 end
 
 function SimulatorState(grid_world_size::Int64, total_battery::Int64)
@@ -45,7 +49,7 @@ function SimulatorState(grid_world_size::Int64, total_battery::Int64)
     #                                             row+battery_tile_size, fill="green") 
     #                   for row in 0:battery_tile_size:adj_canvas_size]
 
-    return SimulatorState(tk_root, canvas, canvas_true_grid, canvas_belief_grid)#, canvas_battery)
+    return SimulatorState(tk_root, canvas, canvas_true_grid, canvas_belief_grid) #, canvas_battery)
 end
 
 
@@ -92,7 +96,7 @@ function update_simulator(sim::SimulatorState, state::State, belief_state::Belie
 
     canvas_true_grid = sim.canvas_true_grid
     canvas_belief_grid = sim.canvas_belief_grid
-    canvas_battery = sim.canvas_battery
+    # canvas_battery = sim.canvas_battery
     canvas = sim.canvas
     tk_root = sim.tk_root
     bel_world_map = belief_state.bel_world_map
