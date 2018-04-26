@@ -1,7 +1,3 @@
-using PyCall
-using DataStructures
-include("UAVpomdp.jl")
-
 @pyimport Tkinter as tk
 
 ##################################
@@ -14,43 +10,44 @@ struct SimulatorState
 	canvas_true_grid::Array{Array{Int64,1},1}
     canvas_belief_grid::Array{Array{Int64,1},1}
     canvas_battery::Array{Int64,1}
-
-    function SimulatorState(grid_world_size::Int64, total_battery::Int64)
-        tk_root = tk.Tk()
-
-        grid_tile_size = 15
-
-        adj_canvas_size = grid_world_size*grid_tile_size
-        battery_canvas_space = Int(floor(adj_canvas_size/20))*4
-        final_width = 2*adj_canvas_size+battery_canvas_space
-
-        canvas = tk.Canvas(tk_root, width=final_width, height=adj_canvas_size)
-        canvas[:grid](row=0,column=0)
-
-        ground_truth_start = adj_canvas_size + Int(floor(battery_canvas_space/3))
-        ground_truth_end = (2*adj_canvas_size) + Int(floor(battery_canvas_space/3))-1
-        canvas_true_grid = [[canvas[:create_rectangle](col, row, col+grid_tile_size, 
-                                                  row+grid_tile_size, fill="white") 
-                        for col in ground_truth_start:grid_tile_size:ground_truth_end] 
-                        for row in 1:grid_tile_size:adj_canvas_size]
-
-        canvas_belief_grid = [[canvas[:create_rectangle](col, row, col+grid_tile_size, 
-                                                  row+grid_tile_size, fill="gray50") 
-                        for col in 1:grid_tile_size:adj_canvas_size] 
-                        for row in 1:grid_tile_size:adj_canvas_size]
-
-        # battery_canvas_start = 2*adj_canvas_size + 2*Int(floor(battery_canvas_space/3)) 
-        # battery_canvas_end = 2*adj_canvas_size + 3*Int(floor(battery_canvas_space/3))
-        # battery_tile_size = Int(floor(adj_canvas_size/total_battery))
-
-        # canvas_battery = [canvas[:create_rectangle](battery_canvas_start,row,
-        #                                             battery_canvas_end,
-        #                                             row+battery_tile_size, fill="green") 
-        #                   for row in 0:battery_tile_size:adj_canvas_size]
-
-        return new(tk_root, canvas, canvas_true_grid, canvas_belief_grid)#, canvas_battery)
-    end
 end
+
+function SimulatorState(grid_world_size::Int64, total_battery::Int64)
+    tk_root = tk.Tk()
+
+    grid_tile_size = 15
+
+    adj_canvas_size = grid_world_size*grid_tile_size
+    battery_canvas_space = Int(floor(adj_canvas_size/20))*4
+    final_width = 2*adj_canvas_size+battery_canvas_space
+
+    canvas = tk.Canvas(tk_root, width=final_width, height=adj_canvas_size)
+    canvas[:grid](row=0,column=0)
+
+    ground_truth_start = adj_canvas_size + Int(floor(battery_canvas_space/3))
+    ground_truth_end = (2*adj_canvas_size) + Int(floor(battery_canvas_space/3))-1
+    canvas_true_grid = [[canvas[:create_rectangle](col, row, col+grid_tile_size, 
+                                              row+grid_tile_size, fill="white") 
+                    for col in ground_truth_start:grid_tile_size:ground_truth_end] 
+                    for row in 1:grid_tile_size:adj_canvas_size]
+
+    canvas_belief_grid = [[canvas[:create_rectangle](col, row, col+grid_tile_size, 
+                                              row+grid_tile_size, fill="gray50") 
+                    for col in 1:grid_tile_size:adj_canvas_size] 
+                    for row in 1:grid_tile_size:adj_canvas_size]
+
+    # battery_canvas_start = 2*adj_canvas_size + 2*Int(floor(battery_canvas_space/3)) 
+    # battery_canvas_end = 2*adj_canvas_size + 3*Int(floor(battery_canvas_space/3))
+    # battery_tile_size = Int(floor(adj_canvas_size/total_battery))
+
+    # canvas_battery = [canvas[:create_rectangle](battery_canvas_start,row,
+    #                                             battery_canvas_end,
+    #                                             row+battery_tile_size, fill="green") 
+    #                   for row in 0:battery_tile_size:adj_canvas_size]
+
+    return SimulatorState(tk_root, canvas, canvas_true_grid, canvas_belief_grid)#, canvas_battery)
+end
+
 
 function first_update_simulator(sim::SimulatorState, initial_state::State)
 
@@ -160,8 +157,8 @@ end
 ########################
 
 function make_cluster(world_map::BitArray{2}, rng::MersenneTwister)
-    const cluster_height = 1
-    const cluster_width = 1
+    cluster_height = 1
+    cluster_width = 1
 
     row_start = Base.Random.rand(rng, -cluster_height:size(world_map,1))
     col_start = Base.Random.rand(rng, -cluster_width:size(world_map,2))
@@ -340,6 +337,7 @@ function get_confidence_border(belief_map::Array{Float64,2}, visited_nodes::Arra
     return unique(border)
 end
 
+# NATE - Do the functions below have to do with ground truth? Can we put them in a separate file or something?
 function optimal_action_given_information(p::UAVpomdp, belief_state::BeliefState)
 
     #print("\n\n TAKING MOVEMENT ACTION\n")
@@ -416,7 +414,7 @@ function choose_information_action(p::UAVpomdp, belief_state::BeliefState)
     best_sensor = 0
 
     for sensor in SENSORS
-        change_confidence = p.sensor_set[sensor].changeConfidence(belief_state.bel_world_map, belief_state.bel_location)
+        change_confidence = change_confidence(p.sensor_set[sensor], belief_state.bel_world_map, belief_state.bel_location)
         #print(string(sensor)*","*string(change_confidence)*"\n")
 
         if change_confidence > max_change

@@ -1,8 +1,3 @@
-importall POMDPs
-using ParticleFilters, POMCPOW
-using Distributions
-include("Sensors.jl")
-
 #################################
 # Define state and action space #
 #################################
@@ -26,7 +21,7 @@ struct BeliefState
     bel_world_map::Array{Float64,2}
 end
 
-type UAVpomdp <: POMDPs.POMDP{State,Int64,Observation}
+mutable struct UAVpomdp <: POMDPs.POMDP{State,Int64,Observation}
     map_size::Int64
     true_map::BitArray{2}
     start_coords::Array{Int64,1}
@@ -58,7 +53,7 @@ function generate_o(p::UAVpomdp, s::State, a::Int64, sp::State, rng::MersenneTwi
 
         obs_map[sp.location[1],sp.location[2]] = ( sp.world_map[sp.location[1],sp.location[2]], 1.0 )
     else
-        obs_map = p.sensor_set[a].sense(sp.world_map, sp.location, rng)
+        obs_map = sense(p.sensor_set[a], sp.world_map, sp.location, rng)
     end
 
     return Observation(obs_loc,obs_batt_used,obs_map)
@@ -92,10 +87,7 @@ function generate_s(p::UAVpomdp, s::State, a::Int64, rng::MersenneTwister)
         new_batt += 1
     else
         # The only change is to battery
-        new_batt += p.sensor_set[a].consumeEnergy(rng)
-
-        # Make changes in bel_map
-        
+        new_batt += consume_energy(p.sensor_set[a], rng)
     end
 
     return State(new_loc,new_batt,new_map)
@@ -160,18 +152,6 @@ function reward_no_heuristic(p::UAVpomdp, s::State, a::Int64, sp::State)
     return reward
 end 
 
-###############################################
-# Define POMDP struct and initialize instance #
-###############################################
-
-# type UAVpomdp <: POMDPs.POMDP{State,Int64,Observation}
-#     map_size::Int64
-#     true_map::BitArray{2}
-#     start_coords::Array{Int64,1}
-#     goal_coords::Array{Int64,1}
-#     sensor_set::Array{Sensor,1}
-#     reward_lambdas::Array{Float64}
-# end
 
 # These seem to be needed by POMCP
 # TODO : See if you need discount < 1.0 for POMCP properties
@@ -206,7 +186,6 @@ end
 
 # generate_s will just use the generate_s of the POMDP
 # ParticleFilters - need observation weight function
-# Also need a ParticleGenerator?
 function ParticleFilters.obs_weight(p::UAVpomdp, s::State, a::Int64, sp::State, o::Observation)
 
     logweight = 0.0
@@ -235,7 +214,7 @@ function ParticleFilters.obs_weight(p::UAVpomdp, s::State, a::Int64, sp::State, 
             end
         end
 
-        logweight += log(p.sensor_set[a].energyUsageLikelihood(o.obs_battery_used))
+        logweight += log(energy_usage_likelihood(p.sensor_set[a], o.obs_battery_used))
     end
 
     return exp(logweight)
@@ -259,7 +238,7 @@ function update_belief(p::UAVpomdp, b::BeliefState, a::Int64, o::Observation)
     else
         # Action is a sensor usage
         # Update battery gaussians
-        sensor_mean_std = p.sensor_set[a].energySpec
+        sensor_mean_std = p.sensor_set[a].energy_spec
         new_batt_used = [b.bel_battery_used[1] + sensor_mean_std[1] , sqrt(b.bel_battery_used[2]^2 + sensor_mean_std[2]^2)]
 
         # Now update grid
@@ -323,7 +302,7 @@ struct MDPState
 end
 
 
-type UAVBeliefMDP <: POMDPs.MDP{MDPState,Int64}
+mutable struct UAVBeliefMDP <: POMDPs.MDP{MDPState,Int64}
     map_size::Int64
     true_map::BitArray{2}
     start_coords::Array{Int64,1}
@@ -392,7 +371,7 @@ function generate_sr(p::UAVBeliefMDP, s::MDPState, a::Int64, rng::MersenneTwiste
 
         exp_cost += p.reward_lambdas[3] * p.sensor_set[a].energySpec[1]
 
-        new_bel_world_map = p.sensor_set[a].updateBelMapMDP(s.bel_world_map,s.location,rng)
+        new_bel_world_map = update_bel_map_mdp(p.sensor_set[a], s.bel_world_map,s.location,rng)
     end
 
     next_sim_state = MDPState([new_loc1,new_loc2],new_bel_batt_used,new_bel_world_map)
@@ -441,12 +420,12 @@ function next_state_reward_true(p::UAVBeliefMDP, s::MDPState, a::Int64, rng::Mer
 
         new_bel_map[new_loc1,new_loc2] = p.true_map[new_loc1,new_loc2]
     else
-        batt_consumed = p.sensor_set[a].consumeEnergy(rng)
+        batt_consumed = consume_energy(rng, p.sensor_set[a])
         new_bel_batt_used = [s.bel_battery_used[1] + p.sensor_set[a].energySpec[1], sqrt(s.bel_battery_used[2]^2 + p.sensor_set[a].energySpec[2]^2)]
 
         cost += p.reward_lambdas[3]*batt_consumed
 
-        sensor_obs_map = p.sensor_set[a].sense(p.true_map,s.location,rng)
+        sensor_obs_map = sense(p.sensor_set[a], p.true_map,s.location,rng)
 
         for i = 1:p.map_size
             for j = 1:p.map_size
